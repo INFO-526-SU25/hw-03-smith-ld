@@ -8,7 +8,7 @@ toc: true
 ---
 
 ```{r}
-pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape")
+pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt")
 for (pkg in pkgs) {
   if (!require(pkg, character.only=TRUE)) {
     install.packages(pkg)
@@ -29,7 +29,7 @@ db <- pivot_longer(dubois,
 order <- rev(c("$100-200", "$200-300", "$300-400", "$400-500", "$500-750", "$750-1000", "$1000 AND OVER"))
 x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
 # might work ggplot(db, aes(x=factor(percent, levels=x_ordering), y=Class, fill=income_type)) +  geom_col(position="fill") + 
-color_vals = c("Rent" = "black", "Food" = "purple", "Clothes" = "orange", "Tax"="deepskyblue", "Other"="#97FFFF")
+color_vals = c("Rent" = "#141512", "Food" = "#805D7D", "Clothes" = "#DA907F", "Tax"="#958c82", "Other"="#BDB39C")
 
 plt <- ggplot(db, aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +  geom_col(position="fill")  
 plt <- plt + 
@@ -109,9 +109,9 @@ survey_response_values <- c(
 )
 
 relabeled_cols <- colnames(covid[, seq(from=9, to=14)])
+covid2 <- covid
 
 covid <- covid |> mutate(across(relabeled_cols, ~ survey_response_values[as.character(.)]))
-
 covid <- covid |>
   mutate(exp_already_vax=case_when(
     exp_already_vax== 0 ~ "No", exp_already_vax== 1 ~ "Yes"
@@ -140,7 +140,7 @@ covid <- covid |>
     exp_ethnicity== 2 ~ "Non-Hispanic/Non-Latino"
   )) |>
   mutate(exp_age_bin=case_when(
-    exp_age_bin== 1 ~ "<20", 
+    exp_age_bin== 0 ~ "<20", 
     exp_age_bin== 20 ~ "21-25", 
     exp_age_bin== 25  ~ "26-30", 
     exp_age_bin== 30 ~ ">30"
@@ -150,6 +150,132 @@ covid <- covid |>
 dim(covid)
 ```
 
+```{r}
+coviddata <- covid2 |>
+  mutate(exp_already_vax=as.factor(case_when(
+    exp_already_vax== 0 ~ "No", exp_already_vax== 1 ~ "Yes"
+  ))) |>
+  mutate(exp_flu_vax=as.factor(case_when(
+    exp_flu_vax== 0 ~ "No", exp_flu_vax== 1 ~ "Yes"
+  ))) |>
+  mutate(exp_profession=as.factor(case_when(
+    exp_profession== 0 ~ "Medical", exp_profession== 1 ~ "Nursing"
+  ))) |>
+  mutate(exp_gender=as.factor(case_when(
+    exp_gender== 0 ~ "Male", 
+    exp_gender== 1 ~ "Female", 
+    exp_gender== 2 ~ "Non-binary third gender", 
+    exp_gender== 3 ~ "Prefer not to say"
+  ))) |>
+  mutate(exp_race=as.factor(case_when(
+    exp_race== 1 ~ "American Indian / Alaskan Native", 
+    exp_race== 2 ~ "Asian", 
+    exp_race== 3 ~ "Black / African American", 
+    exp_race== 4 ~ "Native Hawaiian / Other Pacific Islander", 
+    exp_race== 5 ~ "White"
+  ))) |>
+  mutate(exp_ethnicity=as.factor(case_when(
+    exp_ethnicity== 1 ~ "Hispanic / Latino", 
+    exp_ethnicity== 2 ~ "Non-Hispanic/Non-Latino"
+  ))) |>
+  mutate(exp_age_bin=as.factor(case_when(
+    exp_age_bin== 0 ~ "<20", 
+    exp_age_bin== 20 ~ "21-25", 
+    exp_age_bin== 25  ~ "26-30", 
+    exp_age_bin== 30 ~ ">30"
+  )))
+
+covid_survey_longer <- coviddata |>
+  pivot_longer(
+    cols = starts_with("exp_"),
+    names_to = "explanatory",
+    values_to = "explanatory_value"
+  ) |>
+  filter(!is.na(explanatory_value)) |>
+  pivot_longer(
+    cols = starts_with("resp_"),
+    names_to = "response",
+    values_to = "response_value"
+  )
+```
+
+```{r}
+tibble(covid_survey_longer)
+```
+
+```{r}
+covid_survey_summary_stats_by_group <- covid_survey_longer |> 
+  mutate(response_value = as.numeric(response_value)) |>
+  group_by(explanatory, explanatory_value, response) |> 
+  summarise(
+    mean=mean(response_value, na.rm=TRUE),
+    low=quantile(response_value, .1, na.rm=TRUE),
+    high=quantile(response_value,.9, na.rm=TRUE)  )
+
+covid_survey_summary_stats_by_group
+```
+
+-   
+
+-   Now group the data (`covid_survey_longer`) again, this time only by `response`, in order to calculate the same summary statistics for each response variable (mean, 10th percentile, and 90th percentile), not conditioned on the explanatory variables. Name this new data frame `covid_survey_summary_stats_all`. It should look like the following:
+
+```{r}
+covid_survey_summary_stats_all <- covid_survey_longer |> 
+  group_by(response) |> 
+  summarise(
+    mean=mean(response_value, na.rm=TRUE),
+    low=quantile(response_value, .1, na.rm=TRUE),
+    high=quantile(response_value,.9, na.rm=TRUE)  ) |> 
+  mutate(
+    explanatory = "All",
+    explanatory_value = ""
+  )
+
+
+covid_survey_summary_stats_all
+```
+
+-   Bind the two data frames of summary statistics you created `covid_survey_summary_stats_all` and `covid_survey_summary_stats_by_group` together by row. Name the resulting data frame `covid_survey_summary_stats`. It should look like the following:
+
+```{r}
+covid_survey_summary_stats <- bind_rows(covid_survey_summary_stats_all, covid_survey_summary_stats_by_group)
+
+covid_survey_summary_stats
+```
+
+```         
+```
+
 ## 4 - COVID survey - re-reconstruct
+
+```{r}
+csss <- covid_survey_summary_stats
+ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(x=response, y=interaction(explanatory, explanatory_value), group=explanatory)) +
+  geom_segment(aes(x=low, y=explanatory_value, xend=high, yend=explanatory_value)) + 
+  geom_point(aes(x=mean)) + 
+  theme_minimal(
+    
+  ) + 
+  labs(title="Based on my understanding")
+```
+
+```{r}
+csss <- covid_survey_summary_stats
+ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(y=interaction(explanatory, explanatory_value, lex.order=TRUE), group=explanatory)) +
+  geom_segment(aes(x=low, xend=high)) + 
+  theme(
+    legend.position=NULL,
+    axis.
+  ) + 
+    geom_point(aes(x=low)) + geom_point(aes(x=high)) + geom_point(aes(x=mean)) + 
+  labs(title="Based on my understanding", x="", y="")
+
+
+#ggplot(df, aes(y = reorder(company, customers))) +
+ # geom_segment(aes(x = customers, xend = potential_customers, yend = company)) +
+#  geom_point(aes(x = customers), size = 3, color = "red") +
+#  geom_point(aes(x = potential_customers), size = 3) 
+
+```
 
 ## 5 - COVID survey - another view
