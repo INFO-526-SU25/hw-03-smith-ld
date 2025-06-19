@@ -31,29 +31,33 @@ x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
 # might work ggplot(db, aes(x=factor(percent, levels=x_ordering), y=Class, fill=income_type)) +  geom_col(position="fill") + 
 color_vals = c("Rent" = "black", "Food" = "purple", "Clothes" = "orange", "Tax"="deepskyblue", "Other"="#97FFFF")
 
-plt <- ggplot(db, aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +  geom_col(position="fill") 
+plt <- ggplot(db, aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +  geom_col(position="fill")  
 plt <- plt + 
         guides(fill=FALSE) + 
         theme(axis.text.x=element_blank(),
              axis.title.x=element_blank(),
-             axis.ticks.x=element_blank(), legend.position = NULL) + 
+             axis.ticks.x=element_blank(), 
+             axis.ticks.y = element_blank(),
+             legend.position = NULL, 
+             plot.margin=margin(0,0,0,0),
+             plot.background = element_blank(),
+             axis.text.y = element_blank(),
+             panel.background=element_blank()) + 
         labs(x="", y="") + 
         scale_y_discrete(limits=order) +
         scale_fill_manual(values=color_vals) 
-```
 
-```{r}
+
 tabledata <- dubois |> select(Class, Average_Income)
-tab = tableGrob(tabledata, rows=NULL, theme=ttheme_minimal(base_size = 7))
-tab$heights <- unit(rep(1/nrow(tab), nrow(tab)), "npc")
+tab = tableGrob(tabledata, rows=NULL, theme=ttheme_default(base_size = 7, ))
+tab$heights <- unit(rep(1/nrow(tab), nrow(tab) ), "npc")
 
 grid.arrange(
-  arrangeGrob(tab),
+  arrangeGrob(tab, nullGrob(), heights=c(200, 5)),
   arrangeGrob(nullGrob(), plt, 
-              heights=c(1, 9)),
+              heights=c(4, 30)),
   widths=c(2, 8)
 )
-
 ```
 
 ## 2 - COVID survey - interpret
@@ -64,6 +68,87 @@ grid.arrange(
 ```
 
 ## 3 - COVID survey - reconstruct
+
+```{r}
+covid <- read_csv("data/covid-survey.csv")
+```
+
+```{r}
+covid <- read_csv("data/covid-survey.csv", skip=1)
+
+```
+
+```{r}
+# filter out any no longer useful
+colnames <- colnames(covid[, -1])
+filtered_missing_rows <- covid |> filter(!if_all(.cols=colnames, is.na))
+dim(filtered_missing_rows)
+```
+
+-   Relabel the survey response values according to the information in `data/covid_survey.pdf`. Peeking at the plot you’re working towards reconstructing can also be helpful to identify how exactly to recode the variables. Print the dimensions of the resulting data frame with `dim()`.
+
+    -   `exp_already_vax` and `exp_flu_vax`: 0 - No, 1 - Yes
+
+    -   `exp_profession`: 0 - Medical, 1 - Nursing
+
+    -   `exp_gender`: 0 - Male, 1 - Female, 3 - Non-binary third gender, 4 - Prefer not to say
+
+    -   `exp_race`: 1 - American Indian / Alaskan Native, 2 - Asian, 3 - Black / African American, 4 - Native Hawaiian / Other Pacific Islander, 5 - White
+
+    -   `exp_ethnicity`: 1 - Hispanic / Latino, 2 - Non-Hispanic/Non-Latino
+
+    -   `exp_age_bin`: 0 - \<20, 20 - 21-25, 25 - 26-30, 30 - \>30
+
+```{r}
+survey_response_values <- c(
+  "1" = "Strongly agree",
+  "2" = "Somewhat agree",
+  "3" = "Neither agree nor disagree",
+  "4" = "Somewhat disagree",
+  "5" = "Strongly disagree"
+)
+
+relabeled_cols <- colnames(covid[, seq(from=9, to=14)])
+
+covid <- covid |> mutate(across(relabeled_cols, ~ survey_response_values[as.character(.)]))
+
+covid <- covid |>
+  mutate(exp_already_vax=case_when(
+    exp_already_vax== 0 ~ "No", exp_already_vax== 1 ~ "Yes"
+  )) |>
+  mutate(exp_flu_vax=case_when(
+    exp_flu_vax== 0 ~ "No", exp_flu_vax== 1 ~ "Yes"
+  )) |>
+  mutate(exp_profession=case_when(
+    exp_profession== 0 ~ "Medical", exp_profession== 1 ~ "Nursing"
+  )) |>
+  mutate(exp_gender=case_when(
+    exp_gender== 0 ~ "Male", 
+    exp_gender== 1 ~ "Female", 
+    exp_gender== 2 ~ "Non-binary third gender", 
+    exp_gender== 3 ~ "Prefer not to say"
+  )) |>
+  mutate(exp_race=case_when(
+    exp_race== 1 ~ "American Indian / Alaskan Native", 
+    exp_race== 2 ~ "Asian", 
+    exp_race== 3 ~ "Black / African American", 
+    exp_race== 4 ~ "Native Hawaiian / Other Pacific Islander", 
+    exp_race== 5 ~ "White"
+  )) |>
+  mutate(exp_ethnicity=case_when(
+    exp_ethnicity== 1 ~ "Hispanic / Latino", 
+    exp_ethnicity== 2 ~ "Non-Hispanic/Non-Latino"
+  )) |>
+  mutate(exp_age_bin=case_when(
+    exp_age_bin== 1 ~ "<20", 
+    exp_age_bin== 20 ~ "21-25", 
+    exp_age_bin== 25  ~ "26-30", 
+    exp_age_bin== 30 ~ ">30"
+  ))
+
+
+dim(covid)
+```
 
 ## 4 - COVID survey - re-reconstruct
 
