@@ -8,7 +8,7 @@ toc: true
 ---
 
 ```{r}
-pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt")
+pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt", "likert")
 for (pkg in pkgs) {
   if (!require(pkg, character.only=TRUE)) {
     install.packages(pkg)
@@ -250,6 +250,7 @@ covid_survey_summary_stats
 
 ```{r}
 csss <- covid_survey_summary_stats
+
 ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(x=response, y=interaction(explanatory, explanatory_value), group=explanatory)) +
   geom_segment(aes(x=low, y=explanatory_value, xend=high, yend=explanatory_value)) + 
   geom_point(aes(x=mean)) + 
@@ -259,23 +260,67 @@ ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(x=response, y=in
   labs(title="Based on my understanding")
 ```
 
-```{r}
+```{r fig.width=10, fig.height=3.5}}
+
+
+
+
 csss <- covid_survey_summary_stats
-ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(y=interaction(explanatory, explanatory_value, lex.order=TRUE), group=explanatory)) +
-  geom_segment(aes(x=low, xend=high)) + 
+csss <- csss |> mutate(
+    explanatory = factor(explanatory),
+    explanatory_value = factor(explanatory_value),
+    response = factor(response)
+  ) |>
+  droplevels()
+
+
+p <- ggplot(csss, aes(y=explanatory_value)) +
+  geom_segment(aes(x=low, xend=high), linewidth=.3) + 
   theme(
-    legend.position=NULL,
-    axis.
-  ) + 
-    geom_point(aes(x=low)) + geom_point(aes(x=high)) + geom_point(aes(x=mean)) + 
-  labs(title="Based on my understanding", x="", y="")
+      legend.position=NULL,
+      axis.ticks.x=element_blank(),
+      axis.ticks.y=element_blank(), 
+      panel.background = element_blank()
+    ) + 
+    geom_point(aes(x=low), size=.5) + 
+    geom_point(aes(x=high), size=.5) + 
+    geom_point(aes(x=mean), size=.5) + 
+  labs(x="", y="")
 
+xlabels <- c(
+  "resp_safety" = "Based on my understanding, I believe the vaccine is safe",
+"resp_confidence_science" = "I am confident in the scientific vetting process for the new COVID vaccines", 
+"resp_feel_safe_at_work" = "Getting the vaccine will make me feel safer at work",
+"resp_will_recommend" = "I will recommend the vaccine to family, friends, and community members",
+"resp_trust_info" = "I trust the information that I have received about the vaccines",
+"resp_concern_safety" = "I am concerned about the safety and side effects of the vaccine"
+)
 
-#ggplot(df, aes(y = reorder(company, customers))) +
- # geom_segment(aes(x = customers, xend = potential_customers, yend = company)) +
-#  geom_point(aes(x = customers), size = 3, color = "red") +
-#  geom_point(aes(x = potential_customers), size = 3) 
+ylabels <- c(
+  "exp_age_bin" = "Age",
+"exp_gender" = "Gender",
+"exp_race" = "Race",
+"exp_ethnicity" = "Ethnicity",
+"exp_profession" = "Profession",
+"exp_already_vax" = "Had COVID vaccine",
+"exp_flu_vax" = "Had flu vaccine this year"
+)
 
+p + facet_grid(vars(explanatory), vars(response), scales="free_y", space="free_y", drop=TRUE,
+               labeller = labeller(explanatory = ylabels, response=xlabels)) + 
+  theme(
+    strip.text.x = element_text(size=6),
+    strip.
+    strip.text.y = element_text(angle=0)
+  )
 ```
 
 ## 5 - COVID survey - another view
+
+**COVID survey - another view.** Create two bar charts of the Likert data for the six survey questions in from the plot in Exercise 2. This should be a single plot visualizing the percentages of each possible answer, with different questions on the y-axis. Use an appropriate color scale.
+
+a.  Create a diverging bar chart. Write alt text for your visualization as well.
+
+```{r}
+
+```
