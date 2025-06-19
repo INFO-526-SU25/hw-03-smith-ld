@@ -29,9 +29,17 @@ db <- pivot_longer(dubois,
 order <- rev(c("$100-200", "$200-300", "$300-400", "$400-500", "$500-750", "$750-1000", "$1000 AND OVER"))
 x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
 # might work ggplot(db, aes(x=factor(percent, levels=x_ordering), y=Class, fill=income_type)) +  geom_col(position="fill") + 
-
+color_vals = c("Rent" = "black", "Food" = "purple", "Clothes" = "orange", "Tax"="deepskyblue", "Other"="#97FFFF")
 
 plt <- ggplot(db, aes(x=percent, y=Class, fill=income_type)) +  geom_col(position="fill") 
+plt <- plt + 
+        guides(fill=FALSE) + 
+        theme(axis.text.x=element_blank(),
+             axis.title.x=element_blank(),
+             axis.ticks.x=element_blank(), legend.position = NULL) + 
+        labs(x="", y="") + 
+        scale_y_discrete(limits=order) +
+        scale_fill_manual(values=color_vals) 
 ```
 
 ```{r}
@@ -41,17 +49,11 @@ tab$heights <- unit(rep(1/nrow(tab), nrow(tab)), "npc")
 
 grid.arrange(
   arrangeGrob(tab),
-  arrangeGrob(nullGrob(), plt + guides(fill=FALSE) + 
-                       theme(axis.text.x=element_blank(),
-                             axis.title.x=element_blank(),
-                             axis.ticks.x=element_blank(), legend.position = NULL) + labs(x="", y=""), 
+  arrangeGrob(nullGrob(), plt, 
               heights=c(1, 9)),
   widths=c(2, 8)
 )
 
-```
-
-```{}
 ```
 
 ## 2 - COVID survey - interpret
