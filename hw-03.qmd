@@ -31,7 +31,7 @@ x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
 # might work ggplot(db, aes(x=factor(percent, levels=x_ordering), y=Class, fill=income_type)) +  geom_col(position="fill") + 
 color_vals = c("Rent" = "black", "Food" = "purple", "Clothes" = "orange", "Tax"="deepskyblue", "Other"="#97FFFF")
 
-plt <- ggplot(db, aes(x=percent, y=Class, fill=income_type)) +  geom_col(position="fill") 
+plt <- ggplot(db, aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +  geom_col(position="fill") 
 plt <- plt + 
         guides(fill=FALSE) + 
         theme(axis.text.x=element_blank(),
