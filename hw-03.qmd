@@ -8,7 +8,7 @@ toc: true
 ---
 
 ```{r}
-pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt", "likert")
+pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt", "likert", "ggstats")
 for (pkg in pkgs) {
   if (!require(pkg, character.only=TRUE)) {
     install.packages(pkg)
@@ -322,5 +322,63 @@ p + facet_grid(vars(explanatory), vars(response), scales="free_y", space="free_y
 a.  Create a diverging bar chart. Write alt text for your visualization as well.
 
 ```{r}
+likertdata <- covid_survey_longer |> select(response, response_value)
+likertdata <- likertdata |> mutate(
+  response = factor(response),
+  response_value = factor(response_value)
+)
 
+countofeach <- likertdata  |> group_by(response) |> count(response_value)
+
+likert(likertdata)
+```
+
+```{r}
+percentlikerts <- likertdata |> group_by(response, response_value) |>  
+  summarise(count=n()) |>
+  mutate( prop = count / sum(count) )
+
+
+
+pivoted <- pivot_wider(percentlikerts |> select(response, response_value, prop), names_from=response_value, values_from=prop)
+```
+
+```{r}
+alt_text <- "This graph is a diverging horizontal bar chart of likert scores for a covid related survey. On the x-axis is the count of each likert, and the y-axis contains the different survey questions. There are 6 questions responded to: the likelihood to recommend a vaccine, to trust information regarding the vaccine, tovaccine safety, ability to feel safe at work, confidence in science, and concern for safety. Most value responses tend toward lower values, with most values in the 1-2 range. Responses on the concern for safety present a high trend, with most values either a 4 or 5. "
+csl <- covid_survey_longer
+csl <- mutate(
+  response_value = as.factor(response_value),
+  response = factor(response)
+)
+ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
+  geom_bar(position="diverging") +
+  theme(
+    panel.background = element_blank(),
+    
+  ) + labs(
+    title="Likert scores of Covid related survey", 
+    y="", x="Relative counts per survey response",
+    alt=alt_text
+    
+  ) + 
+  guides(fill=guide_legend(title="Response Values"))
+```
+
+```{r}
+
+ggplot(percentlikerts, aes(x=response, y=prop, fill=response_value)) + 
+  geom_col() +
+  geom_text(aes(label = paste0(round(prop * 100, 0), "%")),
+            position = position_stack(vjust = 0.5),  # place in the middle 
+            color = "black",
+            fontface = "bold") + 
+    coord_flip() +
+  labs(
+    title="Likert scores of Covid related survey",
+    x="", y="Percentages of survey responses"
+  ) +   guides(fill=guide_legend(title="Response Values")) + 
+scale_fill_brewer(palette = "Blues") + 
+  theme(
+    panel.background=element_blank()
+  )
 ```
