@@ -20,7 +20,7 @@ for (pkg in pkgs) {
 ## 1 - Du Bois challenge.
 
 ```{r}
-#| label: label-me-1
+#| label: dubois
 
 dubois <- read_csv("data/income.csv")
 db <- pivot_longer(dubois, 
@@ -103,15 +103,18 @@ Examples
 ## 3 - COVID survey - reconstruct
 
 ```{r}
+#| label: load covid data
 covid <- read_csv("data/covid-survey.csv")
 ```
 
 ```{r}
+#| label: load covid round 2
 covid <- read_csv("data/covid-survey.csv", skip=1)
 
 ```
 
 ```{r}
+#| label: filter null covid values
 # filter out any no longer useful
 colnames <- colnames(covid[, -1])
 filtered_missing_rows <- covid |> filter(!if_all(.cols=colnames, is.na))
@@ -133,6 +136,7 @@ dim(filtered_missing_rows)
     -   `exp_age_bin`: 0 - \<20, 20 - 21-25, 25 - 26-30, 30 - \>30
 
 ```{r}
+#| label: assign covid responses, cleanse data
 survey_response_values <- c(
   "1" = "Strongly agree",
   "2" = "Somewhat agree",
@@ -184,6 +188,7 @@ dim(covid)
 ```
 
 ```{r}
+#| label: assign responses again 
 coviddata <- covid2 |>
   mutate(exp_already_vax=as.factor(case_when(
     exp_already_vax== 0 ~ "No", exp_already_vax== 1 ~ "Yes"
@@ -233,10 +238,12 @@ covid_survey_longer <- coviddata |>
 ```
 
 ```{r}
+#| label: view covid tribbler (longer)
 tibble(covid_survey_longer)
 ```
 
 ```{r}
+#| label: create covid summary, and view
 covid_survey_summary_stats_by_group <- covid_survey_longer |> 
   mutate(response_value = as.numeric(response_value)) |>
   group_by(explanatory, explanatory_value, response) |> 
@@ -253,6 +260,7 @@ covid_survey_summary_stats_by_group
 -   Now group the data (`covid_survey_longer`) again, this time only by `response`, in order to calculate the same summary statistics for each response variable (mean, 10th percentile, and 90th percentile), not conditioned on the explanatory variables. Name this new data frame `covid_survey_summary_stats_all`. It should look like the following:
 
 ```{r}
+#| label: create covid summary stats
 covid_survey_summary_stats_all <- covid_survey_longer |> 
   group_by(response) |> 
   summarise(
@@ -271,6 +279,7 @@ covid_survey_summary_stats_all
 -   Bind the two data frames of summary statistics you created `covid_survey_summary_stats_all` and `covid_survey_summary_stats_by_group` together by row. Name the resulting data frame `covid_survey_summary_stats`. It should look like the following:
 
 ```{r}
+#| label: merge dataframes (covid summaries)
 covid_survey_summary_stats <- bind_rows(covid_survey_summary_stats_all, covid_survey_summary_stats_by_group)
 
 covid_survey_summary_stats
@@ -282,11 +291,13 @@ covid_survey_summary_stats
 ## 4 - COVID survey - re-reconstruct
 
 ```{r fig.width=10, fig.height=5}
+#| label: remake covid likert plot
 
 
 
 
 csss <- covid_survey_summary_stats
+# I saw that factors were being used, so tried that. 
 csss <- csss |> mutate(
     explanatory = factor(explanatory),
     explanatory_value = factor(explanatory_value),
@@ -294,7 +305,7 @@ csss <- csss |> mutate(
   ) |>
   droplevels()
 
-
+# 
 p <- ggplot(csss, aes(y=explanatory_value)) +
   geom_segment(aes(x=low, xend=high), linewidth=.3) + 
   theme(
@@ -303,18 +314,17 @@ p <- ggplot(csss, aes(y=explanatory_value)) +
       axis.ticks.y=element_blank(), 
       panel.background = element_blank()
     ) + 
-    geom_point(aes(x=low), size=.5) + 
-    geom_point(aes(x=high), size=.5) + 
     geom_point(aes(x=mean), size=.5) + 
+    geom_errorbar(aes(xmin=low, xmax=high), width=0.4)
   labs(x="", y="")
 
 xlabels <- c(
-  "resp_safety" = "Based on my understanding, I believe the vaccine is safe",
-"resp_confidence_science" = "I am confident in the scientific vetting process for the new COVID vaccines", 
-"resp_feel_safe_at_work" = "Getting the vaccine will make me feel safer at work",
-"resp_will_recommend" = "I will recommend the vaccine to family, friends, and community members",
-"resp_trust_info" = "I trust the information that I have received about the vaccines",
-"resp_concern_safety" = "I am concerned about the safety and side effects of the vaccine"
+  "resp_safety" = "Based on my \nunderstanding, I \nbelieve the \nvaccine is safe",
+"resp_confidence_science" = "I am confident \nin the scientific \nvetting process \nfor the new \nCOVID vaccines", 
+"resp_feel_safe_at_work" = "Getting the vaccine \nwill make me feel \nsafer at work",
+"resp_will_recommend" = "I will recommend the \nvaccine to family, friends, \nand community members",
+"resp_trust_info" = "I trust the \ninformation that I \nhave received \nabout the vaccines",
+"resp_concern_safety" = "I am concerned about \nthe safety and \nside effects \nof the vaccine"
 )
 
 ylabels <- c(
@@ -333,7 +343,7 @@ p + facet_grid(vars(explanatory), vars(response), scales="free_y", space="free_y
     strip.text.x = element_text(size=6),
     strip.text.y = element_text(angle=0),
     strip.background = element_rect(color = "black", size = .2)
-  )
+  ) + labs(x="Mean Likert score\n(Error bars range from 10th to 90th percentile)")
 ```
 
 ## 5 - COVID survey - another view
@@ -343,6 +353,7 @@ p + facet_grid(vars(explanatory), vars(response), scales="free_y", space="free_y
 a.  Create a diverging bar chart. Write alt text for your visualization as well.
 
 ```{r}
+#| label: get likert data, assign as factors
 likertdata <- covid_survey_longer |> select(response, response_value)
 likertdata <- likertdata |> mutate(
   response = factor(response),
@@ -355,18 +366,26 @@ countofeach <- likertdata  |> group_by(response) |> count(response_value)
 ```
 
 ```{r}
-percentlikerts <- likertdata |> group_by(response, response_value) |>
+#| label: get likert percentages
+
+# get summaries and percentages
+percentlikerts <- likertdata |> 
+  group_by(response, response_value) |>
   summarise(count=n()) |>
   mutate( prop = count / sum(count) )
 
 
-
+# pivot to be 
+# response | perc1 | perc2 | perc3 ...
 pivoted <- pivot_wider(percentlikerts |> select(response, response_value, prop), names_from=response_value, values_from=prop)
 ```
 
 ```{r}
+#| label: create first likert plot (divergent)
 alt_text <- "This graph is a diverging horizontal bar chart of likert scores for a covid related survey. On the x-axis is the count of each likert, and the y-axis contains the different survey questions. There are 6 questions responded to: the likelihood to recommend a vaccine, to trust information regarding the vaccine, tovaccine safety, ability to feel safe at work, confidence in science, and concern for safety. Most value responses tend toward lower values, with most values in the 1-2 range. Responses on the concern for safety present a high trend, with most values either a 4 or 5. "
+
 csl <- covid_survey_longer
+
 ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
   geom_bar(position="diverging") +
   theme(
@@ -382,7 +401,10 @@ ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
 ```
 
 ```{r}
+#| label: create second likert plot (stacked bar)
 
+# there is probably an easier way to do this... this is what I could come up with 
+# would love to see the solution on all of these questions to learn from.
 ggplot(percentlikerts, aes(x=response, y=prop, fill=response_value)) + 
   geom_col() +
   geom_text(aes(label = paste0(round(prop * 100, 0), "%")),
