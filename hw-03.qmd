@@ -26,12 +26,23 @@ dubois <- read_csv("data/income.csv")
 db <- pivot_longer(dubois, 
                    c("Rent", "Food", "Clothes", "Tax", "Other"), 
                    names_to="income_type", values_to = "percent")
-order <- rev(c("$100-200", "$200-300", "$300-400", "$400-500", "$500-750", "$750-1000", "$1000 AND OVER"))
+order <- rev(c("$100-200", 
+               "$200-300", 
+               "$300-400", 
+               "$400-500", 
+               "$500-750", 
+               "$750-1000", 
+               "$1000 AND OVER"
+               )
+             )
+color_vals = c("Rent" = "#141512", "Food" = "#805D7D", 
+               "Clothes" = "#DA907F", "Tax"="#958c82", 
+               "Other"="#BDB39C"
+               )
 x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
-# might work ggplot(db, aes(x=factor(percent, levels=x_ordering), y=Class, fill=income_type)) +  geom_col(position="fill") + 
-color_vals = c("Rent" = "#141512", "Food" = "#805D7D", "Clothes" = "#DA907F", "Tax"="#958c82", "Other"="#BDB39C")
 
-plt <- ggplot(db, aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +  geom_col(position="fill")  
+plt <- ggplot(db, 
+              aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +    geom_col(position="fill") 
 plt <- plt + 
         guides(fill=FALSE) + 
         theme(axis.text.x=element_blank(),
@@ -43,10 +54,9 @@ plt <- plt +
              plot.background = element_blank(),
              axis.text.y = element_blank(),
              panel.background=element_blank()) + 
-        labs(x="", y="") + 
+        labs(x="", y="") +
         scale_y_discrete(limits=order) +
         scale_fill_manual(values=color_vals) 
-
 
 tabledata <- dubois |> select(Class, Average_Income)
 tab = tableGrob(tabledata, rows=NULL, theme=ttheme_default(base_size = 7, ))
@@ -54,9 +64,8 @@ tab$heights <- unit(rep(1/nrow(tab), nrow(tab) ), "npc")
 
 grid.arrange(
   arrangeGrob(tab, nullGrob(), heights=c(200, 5)),
-  arrangeGrob(nullGrob(), plt, 
-              heights=c(4, 30)),
-  widths=c(2, 8)
+  arrangeGrob(nullGrob(), plt, heights=c(4, 30)),
+  widths=c(3, 8)
 )
 ```
 
@@ -66,6 +75,30 @@ grid.arrange(
 #| label: label-me-2
 
 ```
+
+First I would like to mention that I do not like the Likert scaling used in the questionnaire. Most Likert scales have 5 as `Strongly Agree`, yes for this one it is 1. This provides a difference in the user interaction and user experience, and can cause some confusion on reporting as it is an inconsistent experience when compared to other standardized questions that use the Likert scale. Anyway.
+
+There is a lot going on with this visualization. When I saw this visualization for the first time, I felt overwhelmed at the amount of information, and I believe it is important to understand why.
+
+-   The first thing that I notice is the challenge in deciphering any given point. There are three dimensions shown in the graph: the question, the stratification of individual, and the sub-stratification. To view one range, you need to carefully look back and forth a few times to ensure you are on the right scale, which presents a high cognitive load.
+
+-   The second question I noticed is the challenge to discern anything useful. There is so much data, yet at the same time the question becomes: how is any of this useful?
+
+As for the results:
+
+-   Most scores have a low range, from 1-2.
+
+-   To answer the question of whether I believe it is in line with my intuition, I say: it depends. As a general belief system, I believe in the scientific community and as seeing the good in others as well. I believe that most people thought the vaccines were good and were a benefit to society. That part of me does want to go back to the Likert scaling inversion I mentioned before, and say that most people did not read the specifics of what *this* questionnaire's 1 and 5 meant, and assumed that 1 meant disagree and 5 meant agree.
+
+-   The other part of me thinks that it is feasible that many people were skeptical of the vaccine at the time it was released. It was released under different circumstances than a regular vaccine, and I do remember skepticism at the time.
+
+Examples
+
+-   All people thought that they did trust information about the vaccines. The lowest score was a 2.
+
+-   Similarly, all nursing professionals stated that they would recommend the vaccine to friends/family as a 1; in this scoring I would assume that to be accurate.
+
+-   The final note, all medical professionals had a mean value of less than 2 when asked if the vaccine was safe. I would also assume this to be accurate in this scoring.
 
 ## 3 - COVID survey - reconstruct
 
@@ -248,19 +281,7 @@ covid_survey_summary_stats
 
 ## 4 - COVID survey - re-reconstruct
 
-```{r}
-csss <- covid_survey_summary_stats
-
-ggplot(csss |> filter(csss[["response"]] == "resp_safety"), aes(x=response, y=interaction(explanatory, explanatory_value), group=explanatory)) +
-  geom_segment(aes(x=low, y=explanatory_value, xend=high, yend=explanatory_value)) + 
-  geom_point(aes(x=mean)) + 
-  theme_minimal(
-    
-  ) + 
-  labs(title="Based on my understanding")
-```
-
-```{r fig.width=10, fig.height=3.5}}
+```{r fig.width=10, fig.height=5}
 
 
 
@@ -310,8 +331,8 @@ p + facet_grid(vars(explanatory), vars(response), scales="free_y", space="free_y
                labeller = labeller(explanatory = ylabels, response=xlabels)) + 
   theme(
     strip.text.x = element_text(size=6),
-    strip.
-    strip.text.y = element_text(angle=0)
+    strip.text.y = element_text(angle=0),
+    strip.background = element_rect(color = "black", size = .2)
   )
 ```
 
@@ -330,11 +351,11 @@ likertdata <- likertdata |> mutate(
 
 countofeach <- likertdata  |> group_by(response) |> count(response_value)
 
-likert(likertdata)
+# likert(likertdata)
 ```
 
 ```{r}
-percentlikerts <- likertdata |> group_by(response, response_value) |>  
+percentlikerts <- likertdata |> group_by(response, response_value) |>
   summarise(count=n()) |>
   mutate( prop = count / sum(count) )
 
@@ -346,10 +367,6 @@ pivoted <- pivot_wider(percentlikerts |> select(response, response_value, prop),
 ```{r}
 alt_text <- "This graph is a diverging horizontal bar chart of likert scores for a covid related survey. On the x-axis is the count of each likert, and the y-axis contains the different survey questions. There are 6 questions responded to: the likelihood to recommend a vaccine, to trust information regarding the vaccine, tovaccine safety, ability to feel safe at work, confidence in science, and concern for safety. Most value responses tend toward lower values, with most values in the 1-2 range. Responses on the concern for safety present a high trend, with most values either a 4 or 5. "
 csl <- covid_survey_longer
-csl <- mutate(
-  response_value = as.factor(response_value),
-  response = factor(response)
-)
 ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
   geom_bar(position="diverging") +
   theme(
