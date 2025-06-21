@@ -8,7 +8,7 @@ toc: true
 ---
 
 ```{r}
-pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt", "likert", "ggstats")
+pkgs = c("tidyverse", "grid", "gridExtra", "ggplot2", "reshape", "ggalt", "likert", "ggstats", "ggimage", "jpeg" ,"png")
 for (pkg in pkgs) {
   if (!require(pkg, character.only=TRUE)) {
     install.packages(pkg)
@@ -21,6 +21,9 @@ for (pkg in pkgs) {
 
 ```{r}
 #| label: dubois
+library(jpeg)
+parchment <- readJPEG("images/parchment.jpg")
+bg <- rasterGrob(parchment, width = unit(1,"npc"), height = unit(1,"npc"))
 
 dubois <- read_csv("data/income.csv")
 db <- pivot_longer(dubois, 
@@ -42,7 +45,16 @@ color_vals = c("Rent" = "#141512", "Food" = "#805D7D",
 x_ordering <- c("Rent", "Food", "Clothes", "Tax", "Other")
 
 plt <- ggplot(db, 
-              aes(x=percent, y=Class, fill=factor(income_type, levels=rev(x_ordering)))) +    geom_col(position="fill") 
+              aes(x=percent, 
+                  y=Class, 
+                  fill=factor(income_type, 
+                              levels=rev(x_ordering)
+                              ),
+                  )) +    
+  geom_col(position="stack") + 
+  geom_text(aes(label=percent), position = position_stack(vjust = 0.5),
+            size=3)
+
 plt <- plt + 
         guides(fill=FALSE) + 
         theme(axis.text.x=element_blank(),
@@ -53,20 +65,27 @@ plt <- plt +
              plot.margin=margin(0,0,0,0),
              plot.background = element_blank(),
              axis.text.y = element_blank(),
-             panel.background=element_blank()) + 
+             panel.background=element_blank(),
+             panel.grid.minor=element_blank(),
+             panel.grid.major=element_blank()) + 
         labs(x="", y="") +
         scale_y_discrete(limits=order) +
         scale_fill_manual(values=color_vals) 
 
 tabledata <- dubois |> select(Class, Average_Income)
-tab = tableGrob(tabledata, rows=NULL, theme=ttheme_default(base_size = 7, ))
+tab <- tableGrob(tabledata, rows=NULL, theme=ttheme_default(base_size = 7, 
+                                                           panel.background=element_blank()))
 tab$heights <- unit(rep(1/nrow(tab), nrow(tab) ), "npc")
 
-grid.arrange(
+data <- grid.arrange(
   arrangeGrob(tab, nullGrob(), heights=c(200, 5)),
   arrangeGrob(nullGrob(), plt, heights=c(4, 30)),
   widths=c(3, 8)
-)
+) 
+
+grid.raster(parchment, width=unit(1, "npc"), height=unit(1, "npc"))
+grid.draw(data)
+
 ```
 
 ## 2 - COVID survey - interpret
@@ -137,6 +156,9 @@ dim(filtered_missing_rows)
 
 ```{r}
 #| label: assign covid responses, cleanse data
+
+# I moved things over to factored in the second code chunk
+
 survey_response_values <- c(
   "1" = "Strongly agree",
   "2" = "Somewhat agree",
@@ -244,6 +266,8 @@ tibble(covid_survey_longer)
 
 ```{r}
 #| label: create covid summary, and view
+
+# viewing to verify everything is alright, removing nulls because otherwise it doesn't work
 covid_survey_summary_stats_by_group <- covid_survey_longer |> 
   mutate(response_value = as.numeric(response_value)) |>
   group_by(explanatory, explanatory_value, response) |> 
@@ -261,6 +285,8 @@ covid_survey_summary_stats_by_group
 
 ```{r}
 #| label: create covid summary stats
+
+# ended up adding the explanatory value="" on this to make it like yours 
 covid_survey_summary_stats_all <- covid_survey_longer |> 
   group_by(response) |> 
   summarise(
@@ -280,6 +306,8 @@ covid_survey_summary_stats_all
 
 ```{r}
 #| label: merge dataframes (covid summaries)
+
+# merging both row wise 
 covid_survey_summary_stats <- bind_rows(covid_survey_summary_stats_all, covid_survey_summary_stats_by_group)
 
 covid_survey_summary_stats
@@ -354,15 +382,15 @@ a.  Create a diverging bar chart. Write alt text for your visualization as well.
 
 ```{r}
 #| label: get likert data, assign as factors
+
+# You can probably find a way to reuse one of the data sets I already made,
+# but I couldn't figure out the best way to do so.
 likertdata <- covid_survey_longer |> select(response, response_value)
 likertdata <- likertdata |> mutate(
   response = factor(response),
   response_value = factor(response_value)
 )
 
-countofeach <- likertdata  |> group_by(response) |> count(response_value)
-
-# likert(likertdata)
 ```
 
 ```{r}
@@ -374,30 +402,79 @@ percentlikerts <- likertdata |>
   summarise(count=n()) |>
   mutate( prop = count / sum(count) )
 
-
-# pivot to be 
-# response | perc1 | perc2 | perc3 ...
-pivoted <- pivot_wider(percentlikerts |> select(response, response_value, prop), names_from=response_value, values_from=prop)
 ```
 
 ```{r}
 #| label: create first likert plot (divergent)
 alt_text <- "This graph is a diverging horizontal bar chart of likert scores for a covid related survey. On the x-axis is the count of each likert, and the y-axis contains the different survey questions. There are 6 questions responded to: the likelihood to recommend a vaccine, to trust information regarding the vaccine, tovaccine safety, ability to feel safe at work, confidence in science, and concern for safety. Most value responses tend toward lower values, with most values in the 1-2 range. Responses on the concern for safety present a high trend, with most values either a 4 or 5. "
 
-csl <- covid_survey_longer
 
-ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
-  geom_bar(position="diverging") +
-  theme(
-    panel.background = element_blank(),
-    
-  ) + labs(
-    title="Likert scores of Covid related survey", 
-    y="", x="Relative counts per survey response",
-    alt=alt_text
-    
-  ) + 
-  guides(fill=guide_legend(title="Response Values"))
+survey_response_values <- c(
+  "1" = "Strongly agree",
+  "2" = "Somewhat agree",
+  "3" = "Neither agree nor disagree",
+  "4" = "Somewhat disagree",
+  "5" = "Strongly disagree"
+)
+
+# label negative values so we can put them as negative values on the graph 
+
+negative_values <- c("Somewhat disagree", "Strongly disagree")
+
+# make 3 new variables
+# - getting the 1-5 likert scores as text
+# - fixing negative likert scores as negative percentages
+# - factoring the values to order them for the graph
+
+percentages <- percentlikerts |>
+  mutate(percentages=round(prop * 100, 3),
+         response_value_as_text=survey_response_values[as.character(response_value)],
+         response_value_factored=factor(response_value_as_text, c(
+           "Strongly disagree", "Somewhat disagree",
+           "Strongly agree", "Somewhat agree", "Neither agree nor disagree"
+           # had to mix up the ordering to get it right
+         )),
+         fixed_percentages=case_when(
+           response_value_factored %in% negative_values ~ -percentages,
+                         TRUE ~ percentages
+           )
+         ) |> 
+  select(response, response_value_factored, fixed_percentages, percentages)
+
+
+# making a column, stacked, then organizing
+# - assigning labels in the legend 
+# - assigning values with colors
+# - fixing the legend order
+# - fixing up legend title, x/y axes 
+# I reused the response value from the previous question 
+ggplot(percentages, aes(x=response, group=response_value_factored, y=fixed_percentages,
+                        fill=response_value_factored)) + 
+  geom_col() + 
+  coord_flip() + 
+  scale_x_discrete(labels=xlabels) + 
+  scale_fill_manual(values=c(
+  "Strongly disagree" = "#D73027",
+  "Somewhat disagree" = "#FC8D59",
+  "Neither agree nor disagree" = "#FEE08B",
+  "Somewhat agree" = "#91BFDB",
+  "Strongly agree" = "#4575B4"
+  ),
+  breaks=c(
+      "Strongly disagree" ,
+  "Somewhat disagree",
+  "Neither agree nor disagree",
+  "Somewhat agree",
+  "Strongly agree"
+  )) + theme_minimal() + 
+  labs(y="",
+       x="Percent Response",
+       title="Percentage of Responses for Covid Questions",
+           alt=alt_text
+) + 
+  guides(fill=guide_legend(title="Response Value"))
+  
+
 ```
 
 ```{r}
@@ -405,18 +482,28 @@ ggplot(csl, aes(fill=response_value, y=response, group=response_value)) +
 
 # there is probably an easier way to do this... this is what I could come up with 
 # would love to see the solution on all of these questions to learn from.
-ggplot(percentlikerts, aes(x=response, y=prop, fill=response_value)) + 
+
+# - fix percentages
+# - I couldn't figure out how to clean up the fact that they were so close. 
+# - give them them a color assignment 
+ggplot(percentages, aes(x=response, y=percentages, fill=factor(response_value_factored, c(
+           "Strongly disagree", "Somewhat disagree",
+           "Neither agree nor disagree",
+           "Somewhat agree", "Strongly agree"
+           # had to mix up the ordering to get it right
+         )))) + 
   geom_col() +
-  geom_text(aes(label = paste0(round(prop * 100, 0), "%")),
+  geom_text(aes(label = paste0(round(percentages, 0), "%")),
             position = position_stack(vjust = 0.5),  # place in the middle 
             color = "black",
-            fontface = "bold") + 
+            fontface = "bold", size=3) + 
     coord_flip() +
   labs(
     title="Likert scores of Covid related survey",
     x="", y="Percentages of survey responses"
   ) +   guides(fill=guide_legend(title="Response Values")) + 
 scale_fill_brewer(palette = "Blues") + 
+  scale_x_discrete(labels=xlabels) + 
   theme(
     panel.background=element_blank()
   )
